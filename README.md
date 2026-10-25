@@ -1,0 +1,3 @@
+# CASE STUDY 2: ỨNG DỤNG QUẢN LÝ VÀ GIAO CÔNG VIỆC NHÓM
+- MSSV: KHMT2411057
+- Họ và tên: Trần Tấn Lộc

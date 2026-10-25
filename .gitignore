@@ -1,0 +1,12 @@
+# Node.js
+api/node_modules/
+api/.env
+
+# Flutter & Dart
+TaskManager/.dart_tool/
+TaskManager/build/
+TaskManager/.flutter-plugins
+TaskManager/.flutter-plugins-dependencies
+
+# macOS
+.DS_Store
