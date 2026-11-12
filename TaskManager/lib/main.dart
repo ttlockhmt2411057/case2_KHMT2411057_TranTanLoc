@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/auth/register_screen.dart';
+import 'screens/tasks/task_list_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,11 +13,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'TaskManager',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const RegisterScreen(),
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const TaskListScreen(),
     );
   }
 }
