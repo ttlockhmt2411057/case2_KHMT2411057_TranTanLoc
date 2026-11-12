@@ -12,6 +12,7 @@ app.use(express.json());
 connectDB();
 
 app.use('/api/auth', authRoutes);
+app.use('/api/tasks', require('./routes/taskRoutes'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
