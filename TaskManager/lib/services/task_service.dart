@@ -6,7 +6,7 @@ import '../models/task.dart';
 class TaskService {
   static const String baseUrl = 'http://10.0.2.2:3000/api/tasks';
 
-  Future> _getHeaders() async {
+  Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
     return {
