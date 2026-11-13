@@ -1,114 +1,84 @@
 const Task = require('../models/Task');
+const TaskShare = require('../models/TaskShare');
 
+// Lấy danh sách công việc (Tất cả / Tôi tạo / Được giao)
 exports.getTasks = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { scope, status, priority, assigneeId, q, sortBy = 'createdAt', order = 'desc' } = req.query;
+    const { scope, status, priority, q, sortBy = 'createdAt', order = 'desc' } = req.query;
 
-    let filter = { $or: [{ createdBy: userId }, { assigneeIds: userId }] };
-    if (scope === 'created') filter = { createdBy: userId };
-    if (scope === 'assigned') filter = { assigneeIds: userId };
+    // Tìm các taskId mà user hiện tại được chia sẻ
+    const sharedRecords = await TaskShare.find({ sharedWithUserId: userId }).select('taskId');
+    const sharedTaskIds = sharedRecords.map((item) => item.taskId);
+
+    let filter = {};
+    if (scope === 'created') {
+      filter.createdBy = userId;
+    } else if (scope === 'assigned') {
+      filter._id = { $in: sharedTaskIds };
+    } else {
+      // Mặc định lấy cả việc tôi tạo VÀ việc tôi được giao
+      filter.$or = [{ createdBy: userId }, { _id: {$in: sharedTaskIds } }];
+    }
+
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
-    if (assigneeId) filter.assigneeIds = assigneeId;
-    if (q) filter.title = { $regex: q, $options: 'i' };
+    if (q) filter.title = { $regex: q,$options: 'i' };
 
     const sortOrder = order === 'asc' ? 1 : -1;
-    const allowedSort = ['dueDate', 'priority', 'createdAt'];
-    const sortField = allowedSort.includes(sortBy) ? sortBy : 'createdAt';
-
     const tasks = await Task.find(filter)
       .populate('createdBy', 'fullName email')
-      .populate('assigneeIds', 'fullName email')
-      .populate('primaryAssigneeId', 'fullName email')
-      .sort({ [sortField]: sortOrder });
+      .sort({ [sortBy]: sortOrder });
 
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi lấy danh sách công việc', error: err.message });
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi lấy danh sách công việc', error: error.message });
   }
 };
 
+// Xem chi tiết công việc (kèm quyền của user hiện tại: owner / edit / view)
 exports.getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id)
-      .populate('createdBy', 'fullName email')
-      .populate('assigneeIds', 'fullName email')
-      .populate('primaryAssigneeId', 'fullName email');
+    const userId = req.user.id;
+    const task = await Task.findById(req.params.id).populate('createdBy', 'fullName email');
     if (!task) return res.status(404).json({ message: 'Không tìm thấy công việc' });
-    res.json(task);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi lấy chi tiết công việc', error: err.message });
-  }
-};
 
-exports.createTask = async (req, res) => {
-  try {
-    const { title, description, startDate, dueDate, priority, status } = req.body;
-    if (!title || !dueDate) {
-      return res.status(400).json({ message: 'Tên công việc và hạn hoàn thành là bắt buộc' });
+    let userPermission = 'none';
+    if (task.createdBy._id.toString() === userId) {
+      userPermission = 'owner';
+    } else {
+      const share = await TaskShare.findOne({ taskId: task._id, sharedWithUserId: userId });
+      if (share) userPermission = share.permission;
     }
-    const task = await Task.create({
-      title,
-      description,
-      startDate: startDate || Date.now(),
-      dueDate,
-      priority: priority || 'medium',
-      status: status || 'todo',
-      createdBy: req.user.id,
-    });
-    res.status(201).json(task);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi tạo công việc', error: err.message });
+
+    if (userPermission === 'none') {
+      return res.status(403).json({ message: 'Bạn không có quyền xem công việc này' });
+    }
+
+    res.status(200).json({ ...task.toObject(), userPermission });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi lấy chi tiết công việc', error: error.message });
   }
 };
 
+// Cập nhật công việc (Chỉ owner hoặc người có quyền edit mới được sửa)
 exports.updateTask = async (req, res) => {
   try {
+    const userId = req.user.id;
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: 'Không tìm thấy công việc' });
-    if (task.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa công việc này' });
-    }
-    const { title, description, startDate, dueDate, priority, status } = req.body;
-    if (title !== undefined) task.title = title;
-    if (description !== undefined) task.description = description;
-    if (startDate !== undefined) task.startDate = startDate;
-    if (dueDate !== undefined) task.dueDate = dueDate;
-    if (priority !== undefined) task.priority = priority;
-    if (status !== undefined) task.status = status;
 
-    await task.save();
-    res.json(task);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi cập nhật công việc', error: err.message });
-  }
-};
+    const isOwner = task.createdBy.toString() === userId;
+    const share = await TaskShare.findOne({ taskId: task._id, sharedWithUserId: userId });
+    const canEdit = isOwner || (share && share.permission === 'edit');
 
-exports.updateTaskStatus = async (req, res) => {
-  try {
-    const { status } = req.body;
-    if (!['todo', 'in_progress', 'completed'].includes(status)) {
-      return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
+    if (!canEdit) {
+      return res.status(403).json({ message: 'Bạn chỉ có quyền xem, không được chỉnh sửa công việc này' });
     }
-    const task = await Task.findByIdAndUpdate(req.params.id, { status }, { new: true });
-    if (!task) return res.status(404).json({ message: 'Không tìm thấy công việc' });
-    res.json(task);
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi cập nhật trạng thái', error: err.message });
-  }
-};
 
-exports.deleteTask = async (req, res) => {
-  try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: 'Không tìm thấy công việc' });
-    if (task.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Chỉ người tạo mới được xóa công việc' });
-    }
-    await task.deleteOne();
-    res.json({ message: 'Đã xóa công việc thành công' });
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi xóa công việc', error: err.message });
+    const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json(updatedTask);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi cập nhật công việc', error: error.message });
   }
 };
