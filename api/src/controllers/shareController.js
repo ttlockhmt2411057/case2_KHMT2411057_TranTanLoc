@@ -1,6 +1,8 @@
 const Task = require('../models/Task');
 const User = require('../models/User');
 const TaskShare = require('../models/TaskShare');
+const { sendTaskEmail } = require('../services/emailService');
+const { createNotification } = require('../services/notificationService');
 
 // 1. Chia sẻ / Giao việc cho người dùng qua Email
 exports.shareTask = async (req, res) => {
@@ -35,6 +37,27 @@ exports.shareTask = async (req, res) => {
       },
       { new: true, upsert: true }
     ).populate('sharedWithUserId', 'fullName email');
+
+    // Tạo thông báo trong ứng dụng
+    await createNotification({
+      userId: targetUser._id,
+      taskId: task._id,
+      type: 'share',
+      title: 'Bạn được chia sẻ công việc mới',
+      message: `Bạn được mời tham gia công việc "${task.title}" với quyền ${permission === 'edit' ? 'Chỉnh sửa' : 'Chỉ xem'}.`,
+    });
+
+    // Gửi email thông báo qua SMTP
+    sendTaskEmail({
+      taskId: task._id,
+      recipientEmail: targetUser.email,
+      eventType: 'TASK_SHARED',
+      subject: `[Task Manager] Bạn được giao/chia sẻ công việc: ${task.title}`,
+      html: `<h3>Xin chào ${targetUser.fullName},</h3>
+             <p>Bạn vừa được chia sẻ công việc <b>${task.title}</b>.</p>
+             <p>Quyền hạn: <b>${permission === 'edit' ? 'Chỉnh sửa (Editor)' : 'Chỉ xem (Viewer)'}</b></p>
+             <p>Hạn hoàn thành: ${new Date(task.dueDate).toLocaleDateString('vi-VN')}</p>`,
+    });
 
     res.status(200).json({
       message: 'Chia sẻ công việc thành công',
