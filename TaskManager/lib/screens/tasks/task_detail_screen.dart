@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/task.dart';
 import '../../services/task_service.dart';
 import 'task_edit_screen.dart';
+import 'task_share_screen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final String taskId;
@@ -68,6 +69,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       appBar: AppBar(
         title: const Text('Chi tiết công việc'),
         actions: [
+          if (_task != null)
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Giao việc / Chia sẻ',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TaskShareScreen(
+                      taskId: _task!.id,
+                      taskTitle: _task!.title,
+                    ),
+                  ),
+                );
+              },
+            ),
           if (_task != null)
             IconButton(
               icon: const Icon(Icons.edit),
