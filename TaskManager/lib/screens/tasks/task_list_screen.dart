@@ -4,6 +4,7 @@ import '../../services/task_service.dart';
 import 'task_create_screen.dart';
 import 'task_detail_screen.dart';
 import '../notifications/notification_screen.dart';
+import '../profile/profile_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -84,6 +85,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Cá nhân & Thống kê',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
           ),
