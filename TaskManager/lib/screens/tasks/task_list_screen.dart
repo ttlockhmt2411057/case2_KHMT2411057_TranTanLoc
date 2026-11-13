@@ -3,6 +3,7 @@ import '../../models/task.dart';
 import '../../services/task_service.dart';
 import 'task_create_screen.dart';
 import 'task_detail_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -76,6 +77,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
       appBar: AppBar(
         title: const Text('Quản lý công việc'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Thông báo',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationScreen()),
+              );
+            },
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
             tooltip: 'Sắp xếp',
@@ -177,7 +188,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     child: ListTile(
                       title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                        'Hạn: ${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year} • ${_statusLabel(task.status)}',
+                        'Hạn: ${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year} - ${_statusLabel(task.status)}',
                       ),
                       trailing: Chip(
                         label: Text(
