@@ -1,5 +1,6 @@
 const Task = require('../models/Task');
 const TaskShare = require('../models/TaskShare');
+const TaskActivity = require('../models/TaskActivity');
 
 // Lấy danh sách công việc (Tất cả / Tôi tạo / Được giao)
 exports.getTasks = async (req, res) => {
@@ -80,5 +81,15 @@ exports.updateTask = async (req, res) => {
     res.status(200).json(updatedTask);
   } catch (error) {
     res.status(500).json({ message: 'Lỗi cập nhật công việc', error: error.message });
+  }
+};
+exports.getTaskActivities = async (req, res) => {
+  try {
+    const activities = await TaskActivity.find({ taskId: req.params.id })
+      .populate('userId', 'fullName email')
+      .sort({ createdAt: -1 });
+    res.status(200).json(activities);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi tải lịch sử hoạt động', error: error.message });
   }
 };
